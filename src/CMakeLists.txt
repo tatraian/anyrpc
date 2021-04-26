@@ -42,17 +42,22 @@ set(ANYRPC_SOURCES ${ANYRPC_SOURCES} ${ANYRPC_INTERNAL_SOURCES}
 set(ANYRPC_HEADERS ${ANYRPC_HEADERS} ${ANYRPC_INTERNAL_HEADERS} 
     ${ANYRPC_JSON_HEADERS} ${ANYRPC_XML_HEADERS} ${ANYRPC_MESSAGEPACK_HEADERS})
 
-# Add the necessary external library references
-if (BUILD_WITH_LOG4CPLUS)
-    include_directories(${LOG4CPLUS_INCLUDE_DIRS})
-    add_definitions( -DBUILD_WITH_LOG4CPLUS )
-else ()
-    set( LOG4CPLUS_LIBRARIES "" )
-endif ()
-
 # Create the libraries with these header and source files
 add_library( anyrpc ${ANYRPC_LIB_TYPE} ${ANYRPC_SOURCES} ${ANYRPC_HEADERS} )
-target_link_libraries( anyrpc ${ASAN_LIBRARY} ${LOG4CPLUS_LIBRARIES})
+target_include_directories(anyrpc
+    PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:include>")
+
+if (ASAN_LIBRARY)
+    target_link_libraries(anyrpc INTERFACE ${ASAN_LIBRARY})
+endif()
+
+if (BUILD_WITH_LOG4CPLUS)
+    target_compile_definitions(anyrpc INTERFACE  -DBUILD_WITH_LOG4CPLUS)
+    target_link_libraries( anyrpc INTERFACE ${LOG4CPLUS_LIBRARIES})
+endif()
+
 
 # Need the winsock library for Windows
 if (WIN32)
@@ -63,10 +68,17 @@ set_target_properties( anyrpc PROPERTIES VERSION ${ANYRPC_VERSION} SOVERSION ${A
 
 # Install instructions for this target
 install( TARGETS anyrpc
+         EXPORT AnyRPCTargets
          RUNTIME DESTINATION bin
          LIBRARY DESTINATION lib
          ARCHIVE DESTINATION lib)
 
+install(EXPORT AnyRPCTargets
+        FILE AnyRPCTargets.cmake
+        NAMESPACE AnyRPC::
+        DESTINATION lib/cmake/AnyRPC
+)
+    
 # create MSVC directory structure for all files
 set(ANYRPC_FILES ${ANYRPC_HEADERS} ${ANYRPC_CPP_SOURCES})
 
